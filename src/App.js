@@ -1,32 +1,103 @@
+import Amplify, { graphqlOperation } from 'aws-amplify';
 import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
-import { withAuthenticator } from 'aws-amplify-react'
-import Amplify, { Auth } from 'aws-amplify';
-import aws_exports from './aws-exports';
-Amplify.configure(aws_exports);
+import { Connect } from 'aws-amplify-react';
+import awsconfig from './aws-exports';
+import * as mutations from './graphql/mutations';
+import * as queries from './graphql/queries';
+import * as subscriptions from './graphql/subscriptions';
 
-class App extends Component {
-  render() {
+
+Amplify.configure(awsconfig);
+
+
+
+class AddTodo extends Component {
+  constructor(props) {
+    super(props);
+    this.submit = this.submit.bind(this);
+    this.state = {
+        name: '',
+        description: '',
+    };
+  }
+
+  handleChange(name, event) {
+      this.setState({ [name]: event.target.value });
+  }
+
+  async submit() {
+    const { onCreate } = this.props;
+    const input = {
+      name: this.state.name,
+      description: this.state.description
+    }
+    console.log(input);
+
+    try {
+    	await onCreate({input})
+    } catch (err) {
+    	console.error(err);
+    }
+
+  }
+
+  render(){
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
+        <div>
+            <input
+                name="name"
+                placeholder="name"
+                onChange={(event) => { this.handleChange('name', event)}}
+            />
+            <input
+                name="description"
+                placeholder="description"
+                onChange={(event) => { this.handleChange('description', event)}}
+            />
+            <button onClick={this.submit}>
+                Add
+            </button>
+        </div>
     );
   }
 }
 
-export default withAuthenticator(App, true);
+class App extends Component {
+  render() {
+
+    const ListView = ({ todos }) => (
+      <div>
+          <h3>All Todos</h3>
+          <ul>
+            {todos.map(todo => <li key={todo.id}>{todo.name}</li>)}
+          </ul>
+      </div>
+    )
+
+    return (
+      <div className="App">
+        <Connect mutation={graphqlOperation(mutations.createTodo)}>
+          {({mutation}) => (
+            <AddTodo onCreate={mutation} />
+          )}
+        </Connect>
+
+        <Connect query={graphqlOperation(queries.listTodos)}
+          subscription={graphqlOperation(subscriptions.onCreateTodo)}
+          onSubscriptionMsg={(prev, {onCreateTodo}) => {
+              console.log('Subscription data:', onCreateTodo)
+              return prev;
+            }
+          }>
+        {({ data: { listTodos }, loading, error }) => {
+          if (error) return <h3>Error</h3>;
+          if (loading || !listTodos) return <h3>Loading...</h3>;
+            return (<ListView todos={listTodos.items} />);
+        }}
+        </Connect>
+      </div>
+
+    );
+  }
+}
+export default App;
