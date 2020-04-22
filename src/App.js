@@ -1,5 +1,6 @@
 import Amplify, { graphqlOperation } from 'aws-amplify';
 import React, { Component } from 'react';
+import { withAuthenticator } from 'aws-amplify-react';
 import { Connect } from 'aws-amplify-react';
 import awsconfig from './aws-exports';
 import * as mutations from './graphql/mutations';
@@ -100,4 +101,4 @@ class App extends Component {
     );
   }
 }
-export default App;
+export default withAuthenticator(App, {includeGreetings: true});
